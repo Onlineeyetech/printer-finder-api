@@ -3,9 +3,9 @@ const express = require("express");
 const fs = require("fs");
 require("dotenv").config();
 const axios = require("axios");
-const CLIENT_ID = "7af992e48270d33c277b4117936fb8d4";
-const CLIENT_SECRET = "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";
-const SCOPES = "read_products,write_products,read_collections,write_collections";
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const SCOPES = process.env.SCOPES;
 const REDIRECT_URI = "http://localhost:3000/auth/callback";
 
 const app = express();
@@ -13,8 +13,8 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = 3000;
-const SHOP = "best-toner-supply.myshopify.com";
-let ACCESS_TOKEN = "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";
+const SHOP = process.env.SHOP;
+let ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
 const DB = "./printers.json";
 
@@ -180,7 +180,7 @@ await axios.post(
 {
 webhook:{
 topic:"collections/create",
-address:"https://lauralee-quippish-growingly.ngrok-free.dev/webhook/collection-create",
+address: process.env.WEBHOOK_URL + "/webhook/collection-create",
 format:"json"
 }
 },
