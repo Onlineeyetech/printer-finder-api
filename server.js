@@ -107,12 +107,14 @@ const key = p.brand+"__"+p.series;
 
 if(!models[key]) models[key]=[];
 
-if(!models[key].includes(p.model))
+const existsModel = models[key].find(m => m.name === p.model);
+
+if(!existsModel){
 models[key].push({
 name: p.model,
-handle: p.handle
+handle: p.handle || ""
 });
-
+}
 });
 
 res.json({
