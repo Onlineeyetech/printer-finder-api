@@ -219,11 +219,9 @@ app.get("/sync-collections", async (req,res)=>{
 
 try{
 
-let existing = readDB();
-let since_id = 0;
+let existing = [];
 
-while(true){
-
+// 🔥 single API call (no loop)
 const response = await axios.get(
 `https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250`,
 {
@@ -233,49 +231,42 @@ headers:{
 }
 );
 
-const cols = response.data.smart_collections;
+const cols = response.data.smart_collections || [];
 
-if(!cols.length) break;
+console.log("TOTAL COLLECTIONS:", cols.length);
 
 cols.forEach(c=>{
+
+if(!c.title) return;
 
 const parts = c.title.split(">");
 
 if(parts.length < 3) return;
 
 const brand = parts[0].trim();
-const series = parts[1].replace("Series","").trim();
-const model = parts[2].replace(series,"").trim();
+const series = parts[1].trim(); // ❗ important fix
+const model = parts[2].trim();
 
-const tag = `${slug(brand)}_${slug(series)}_${slug(model)}`;
-
-const exists = existing.find(
-p=>p.brand===brand && p.series===series && p.model===model
-);
-
-if(!exists){
 existing.push({
 brand,
 series,
 model,
-tag,
-handle: c.handle
-});
-}
-
+handle: c.handle,
+tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
 });
 
-since_id = cols[cols.length-1].id;
+});
 
-}
-
+// 🔥 save once
 saveDB(existing);
+
+console.log("FINAL SAVED:", existing.length);
 
 res.send("Synced all collections");
 
 }catch(e){
-console.log(e.response?.data);
-res.send("Sync error");
+console.log("SYNC ERROR:", e.response?.data || e.message);
+res.send(e.response?.data || e.message);
 }
 
 });
