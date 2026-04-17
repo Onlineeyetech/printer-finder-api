@@ -5,7 +5,7 @@ require("dotenv").config();
 const axios = require("axios");
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const SCOPES = process.env.SCOPES;
+const SCOPES = process.env.SCOPES;  
 const REDIRECT_URI = "http://localhost:3000/auth/callback";
 
 const app = express();
@@ -108,7 +108,10 @@ const key = p.brand+"__"+p.series;
 if(!models[key]) models[key]=[];
 
 if(!models[key].includes(p.model))
-models[key].push(p.model);
+models[key].push({
+name: p.model,
+handle: p.handle
+});
 
 });
 
@@ -152,7 +155,8 @@ existing.push({
 brand,
 series,
 model,
-tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
+tag: `${slug(brand)}_${slug(series)}_${slug(model)}`,
+handle: c.handle
 });
 
 saveDB(existing);
@@ -252,7 +256,8 @@ existing.push({
 brand,
 series,
 model,
-tag
+tag,
+handle: c.handle
 });
 }
 
