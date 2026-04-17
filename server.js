@@ -225,7 +225,7 @@ let since_id = 0;
 while(true){
 
 const response = await axios.get(
-`https://${SHOP}/admin/api/2024-10/custom_collections.json?limit=250&since_id=${since_id}`,
+`https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250&since_id=${since_id}`,
 {
 headers:{
 "X-Shopify-Access-Token": ACCESS_TOKEN
