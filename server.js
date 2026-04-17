@@ -3,22 +3,22 @@ const express = require("express");
 const fs = require("fs");
 require("dotenv").config();
 const axios = require("axios");
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const SCOPES = process.env.SCOPES;  
-const REDIRECT_URI = "http://localhost:3000/auth/callback";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const PORT = 3000;
+
 const SHOP = process.env.SHOP;
-let ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
 const DB = "./printers.json";
 
+// ================= DB =================
+
 function readDB(){
+if(!fs.existsSync(DB)) return [];
 return JSON.parse(fs.readFileSync(DB));
 }
 
@@ -30,61 +30,29 @@ function slug(str){
 return str.toLowerCase().replace(/\s+/g,'-');
 }
 
-// add printer GET
-app.get("/add-printer", async (req,res)=>{
+// ================= PARSER =================
 
-const {brand,series,model} = req.query;
+function parseTitle(title){
 
-const data = readDB();
+let brand="", series="", model="";
 
-const printer = {
-brand,
-series,
-model,
-tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
-};
-
-data.push(printer);
-
-saveDB(data);
-
-// create collection in Shopify
-const title = `${brand} > ${series} Series > ${series} ${model}`;
-
-try{
-
-await axios.post(
-`https://${SHOP}/admin/api/2024-10/smart_collections.json`,
-{
-smart_collection:{
-title: title,
-rules:[
-{
-column:"tag",
-relation:"equals",
-condition: printer.tag
+if(title.includes(">")){
+const parts = title.split(">");
+brand = parts[0]?.trim() || "";
+series = parts[1]?.trim() || "";
+model = parts[2]?.trim() || "";
+}else{
+const words = title.split(" ");
+brand = words[0] || "";
+model = words[words.length-1] || "";
+series = words.slice(1, -1).join(" ") || "General";
 }
-]
-}
-},
-{
-headers:{
-"X-Shopify-Access-Token": ACCESS_TOKEN,
-"Content-Type":"application/json"
-}
-}
-);
 
+return {brand,series,model};
 }
-catch(e){
-console.log("SYNC ERROR FULL:", e.response?.data || e.message);
-res.send(e.response?.data || e.message);
-}
-res.json(printer);
 
-});
+// ================= FINDER =================
 
-// list printers
 app.get("/finder",(req,res)=>{
 
 const data = readDB();
@@ -106,121 +74,29 @@ const key = p.brand+"__"+p.series;
 
 if(!models[key]) models[key]=[];
 
-const existsModel = models[key].find(m => m.name === p.model);
+const exists = models[key].find(m => m.name === p.model);
 
-if(!existsModel){
+if(!exists){
 models[key].push({
 name: p.model,
 handle: p.handle || ""
 });
 }
-});
-
-res.json({
-brands,
-series,
-models
-});
 
 });
 
-// auto sync
-
-
-
-app.post("/webhook/collection-create", async (req,res)=>{
-
-try{
-
-const c = req.body;
-
-const parts = c.title.split(">");
-
-if(parts.length < 3){
-return res.sendStatus(200);
-}
-
-const brand = parts[0].trim();
-const series = parts[1].replace("Series","").trim();
-const model = parts[2].replace(series,"").trim();
-
-let existing = readDB();
-
-const exists = existing.find(
-p=>p.brand===brand && p.series===series && p.model===model
-);
-
-if(!exists){
-
-existing.push({
-brand,
-series,
-model,
-tag: `${slug(brand)}_${slug(series)}_${slug(model)}`,
-handle: c.handle
-});
-
-saveDB(existing);
-
-console.log("Webhook synced:", c.title);
-
-}
-
-res.sendStatus(200);
-
-}catch(e){
-
-console.log("webhook error");
-res.sendStatus(200);
-
-}
+res.json({brands,series,models});
 
 });
 
+// ================= SYNC =================
 
-app.get("/create-webhook", async (req,res)=>{
-
-await axios.post(
-`https://${SHOP}/admin/api/2024-10/webhooks.json`,
-{
-webhook:{
-topic:"collections/create",
-address: process.env.WEBHOOK_URL + "/webhook/collection-create",
-format:"json"
-}
-},
-{
-headers:{
-"X-Shopify-Access-Token": ACCESS_TOKEN,
-"Content-Type":"application/json"
-}
-}
-);
-
-res.send("Webhook created");
-
-});
-
-
-app.listen(PORT,()=>{
-console.log("server running on 3000");
-});
-
-app.get("/auth",(req,res)=>{
-
-const installUrl = 
-`https://${SHOP}/admin/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPES}&redirect_uri=${REDIRECT_URI}`;
-
-res.redirect(installUrl);
-
-});
 app.get("/sync-collections", async (req,res)=>{
 
 try{
 
 let existing = [];
 
-// 🔥 single API call (no loop)
 const response = await axios.get(
 `https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250`,
 {
@@ -238,13 +114,7 @@ cols.forEach(c=>{
 
 if(!c.title) return;
 
-const parts = c.title.split(">");
-
-if(parts.length < 3) return;
-
-const brand = parts[0].trim();
-const series = parts[1].trim(); // ❗ important fix
-const model = parts[2].trim();
+const {brand,series,model} = parseTitle(c.title);
 
 existing.push({
 brand,
@@ -256,7 +126,6 @@ tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
 
 });
 
-// 🔥 save once
 saveDB(existing);
 
 console.log("FINAL SAVED:", existing.length);
@@ -269,40 +138,44 @@ res.send(e.response?.data || e.message);
 }
 
 });
-app.get("/auth/callback", async (req,res)=>{
 
-const {code} = req.query;
+// ================= WEBHOOK =================
+
+app.post("/webhook/collection-create", async (req,res)=>{
 
 try{
 
-const response = await axios.post(
-`https://${SHOP}/admin/oauth/access_token`,
-{
-client_id: CLIENT_ID,
-client_secret: CLIENT_SECRET,
-code: code
-},
-{
-headers:{
-"Content-Type":"application/json"
-}
-}
-);
+const c = req.body;
 
-ACCESS_TOKEN = response.data.access_token;
+if(!c.title) return res.sendStatus(200);
 
-console.log("ACCESS TOKEN:");
-console.log(ACCESS_TOKEN);
+const {brand,series,model} = parseTitle(c.title);
 
-res.send("App connected successfully");
+let existing = readDB();
+
+existing.push({
+brand,
+series,
+model,
+handle: c.handle,
+tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
+});
+
+saveDB(existing);
+
+console.log("Webhook synced:", c.title);
+
+res.sendStatus(200);
 
 }catch(e){
-
-console.log(e.response?.data || e.message);
-res.send("OAuth failed");
-
+console.log("webhook error");
+res.sendStatus(200);
 }
 
 });
 
+// ================= SERVER =================
 
+app.listen(PORT,()=>{
+console.log("Server running on port 3000");
+});
