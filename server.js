@@ -233,7 +233,7 @@ headers:{
 }
 );
 
-const cols = response.data.custom_collections;
+const cols = response.data.smart_collections;
 
 if(!cols.length) break;
 
