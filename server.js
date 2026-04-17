@@ -77,10 +77,9 @@ headers:{
 
 }
 catch(e){
-console.log("collection error");
-console.log(e.response?.data);
+console.log("SYNC ERROR FULL:", e.response?.data || e.message);
+res.send(e.response?.data || e.message);
 }
-
 res.json(printer);
 
 });
