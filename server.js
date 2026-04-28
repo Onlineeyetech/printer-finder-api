@@ -90,37 +90,78 @@ res.json({brands,series,models});
 });
 
 // ================= SYNC =================
-
 app.get("/sync-collections", async (req,res)=>{
 
 try{
 
 let existing = [];
+const headers = {
+  "X-Shopify-Access-Token": ACCESS_TOKEN
+};
 
-const response = await axios.get(
-`https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250`,
-{
-headers:{
-"X-Shopify-Access-Token": ACCESS_TOKEN
-}
-}
-);
+let allCollections = [];
+
+/* ================= SMART COLLECTIONS ================= */
+
+let smartUrl = `https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250`;
+
+while(smartUrl){
+
+const response = await axios.get(smartUrl,{ headers });
 
 const cols = response.data.smart_collections || [];
+allCollections.push(...cols);
 
-console.log("TOTAL COLLECTIONS:", cols.length);
+const link = response.headers.link;
 
-cols.forEach(c=>{
+if(link && link.includes('rel="next"')){
+smartUrl = link.split(";")[0]
+.replace("<","")
+.replace(">","");
+}else{
+smartUrl = null;
+}
+
+}
+
+/* ================= CUSTOM COLLECTIONS ================= */
+
+let customUrl = `https://${SHOP}/admin/api/2024-10/custom_collections.json?limit=250`;
+
+while(customUrl){
+
+const response = await axios.get(customUrl,{ headers });
+
+const cols = response.data.custom_collections || [];
+allCollections.push(...cols);
+
+const link = response.headers.link;
+
+if(link && link.includes('rel="next"')){
+customUrl = link.split(";")[0]
+.replace("<","")
+.replace(">","");
+}else{
+customUrl = null;
+}
+
+}
+
+/* ================= SAVE DATA ================= */
+
+console.log("TOTAL COLLECTIONS:", allCollections.length);
+
+allCollections.forEach(c=>{
 
 if(!c.title) return;
 
-const {brand,series,model} = parseTitle(c.title);
+const { brand, series, model } = parseTitle(c.title);
 
 existing.push({
 brand,
 series,
 model,
-handle: c.handle,
+handle: c.handle || "",
 tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
 });
 
@@ -133,8 +174,10 @@ console.log("FINAL SAVED:", existing.length);
 res.send("Synced all collections");
 
 }catch(e){
+
 console.log("SYNC ERROR:", e.response?.data || e.message);
 res.send(e.response?.data || e.message);
+
 }
 
 });
