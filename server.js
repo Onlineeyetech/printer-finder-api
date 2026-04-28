@@ -29,7 +29,9 @@ fs.writeFileSync(DB, JSON.stringify(data,null,2));
 function slug(str){
 return str.toLowerCase().replace(/\s+/g,'-');
 }
-
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 // ================= PARSER =================
 function parseTitle(title){
 
@@ -146,7 +148,7 @@ let smartUrl = `https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=2
 while(smartUrl){
 
 const response = await axios.get(smartUrl,{ headers });
-
+await sleep(1000);
 const cols = response.data.smart_collections || [];
 allCollections.push(...cols);
 
@@ -169,7 +171,7 @@ let customUrl = `https://${SHOP}/admin/api/2024-10/custom_collections.json?limit
 while(customUrl){
 
 const response = await axios.get(customUrl,{ headers });
-
+await sleep(1000);
 const cols = response.data.custom_collections || [];
 allCollections.push(...cols);
 
