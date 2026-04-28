@@ -1,270 +1,194 @@
-const cors = require("cors");
 const express = require("express");
+const cors = require("cors");
 const fs = require("fs");
-require("dotenv").config();
 const axios = require("axios");
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-const SHOP = process.env.SHOP;
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const SHOP = process.env.best-toner-supply.myshopify.com; // example: yourstore.myshopify.com
+const TOKEN = process.env.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;
+const API_VERSION = "2024-01";
 
-const DB = "./printers.json";
-
-// ================= DB =================
-
-function readDB(){
-if(!fs.existsSync(DB)) return [];
-return JSON.parse(fs.readFileSync(DB));
-}
-
-function saveDB(data){
-fs.writeFileSync(DB, JSON.stringify(data,null,2));
-}
-
-function slug(str){
-return str.toLowerCase().replace(/\s+/g,'-');
-}
-function sleep(ms){
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-// ================= PARSER =================
-function parseTitle(title){
-
-title = title.trim();
-
-let brand = "";
-let series = "";
-let model = "";
-
-/* Case 1: Brand > Series > Model */
-if(title.includes(">")){
-const parts = title.split(">");
-
-brand = parts[0]?.trim() || "";
-series = parts[1]?.trim() || "";
-model = parts[2]?.trim() || "";
-}
-
-/* Case 2: Normal title parsing */
-else{
-
-const words = title.split(/\s+/);
-
-brand = words[0] || "";
-
-/* Last word as probable model */
-model = words[words.length - 1] || "";
-
-/* Middle words = series */
-series = words.slice(1, -1).join(" ").trim();
-
-/* fallback */
-if(!series){
-series = "General";
-}
-
-/* cleanup */
-series = series
-.replace(/cartridges/gi,"")
-.replace(/series/gi,"")
-.replace(/printers/gi,"")
-.replace(/toner/gi,"")
-.replace(/ink/gi,"")
-.trim();
-
-if(!series){
-series = "General";
-}
-
-}
-
-return {
-brand,
-series,
-model
-};
-
-}
-// ================= FINDER =================
-
-app.get("/finder",(req,res)=>{
-
-const data = readDB();
-
-const brands = [...new Set(data.map(p=>p.brand))];
-
-const series = {};
-const models = {};
-
-data.forEach(p=>{
-
-// series
-if(!series[p.brand]) series[p.brand]=[];
-if(!series[p.brand].includes(p.series))
-series[p.brand].push(p.series);
-
-// models
-const key = p.brand+"__"+p.series;
-
-if(!models[key]) models[key]=[];
-
-const exists = models[key].find(m => m.name === p.model);
-
-if(!exists){
-models[key].push({
-name: p.model,
-handle: p.handle || ""
-});
-}
-
-});
-
-res.json({brands,series,models});
-
-});
-
-// ================= SYNC =================
-
-app.get("/sync-collections", async (req,res)=>{
-
-try{
-
-let existing = [];
 const headers = {
-  "X-Shopify-Access-Token": ACCESS_TOKEN
+  "X-Shopify-Access-Token": TOKEN,
+  "Content-Type": "application/json",
 };
 
-let allCollections = [];
+/*
+========================================
+SLEEP FUNCTION (RATE LIMIT FIX)
+========================================
+*/
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/* ================= SMART COLLECTIONS ================= */
+/*
+========================================
+FETCH ALL PAGES SAFELY
+========================================
+*/
+async function fetchAllPages(endpoint) {
+  let allData = [];
+  let page = 1;
+  let hasNextPage = true;
 
-let smartUrl = `https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250`;
+  while (hasNextPage) {
+    try {
+      console.log(`Fetching: ${endpoint} | page ${page}`);
 
-while(smartUrl){
+      const url = `https://${SHOP}/admin/api/${API_VERSION}/${endpoint}.json?limit=250&page=${page}`;
 
-const response = await axios.get(smartUrl,{ headers });
-await sleep(1000);
-const cols = response.data.smart_collections || [];
-allCollections.push(...cols);
+      const response = await axios.get(url, { headers });
 
-const link = response.headers.link;
+      const key = Object.keys(response.data)[0];
+      const items = response.data[key] || [];
 
-if(link && link.includes('rel="next"')){
-smartUrl = link.split(";")[0]
-.replace("<","")
-.replace(">","");
-}else{
-smartUrl = null;
+      allData = [...allData, ...items];
+
+      console.log(`Fetched ${items.length} records`);
+
+      if (items.length < 250) {
+        hasNextPage = false;
+      } else {
+        page++;
+      }
+
+      /*
+      IMPORTANT:
+      Shopify rate limit safe delay
+      */
+      await sleep(700);
+
+    } catch (error) {
+      console.error(
+        `Error fetching ${endpoint}:`,
+        error.response?.data || error.message
+      );
+
+      /*
+      Extra retry delay if rate limited
+      */
+      await sleep(2000);
+      hasNextPage = false;
+    }
+  }
+
+  return allData;
 }
 
-}
+/*
+========================================
+SYNC COLLECTIONS ROUTE
+========================================
+*/
+app.get("/sync-collections", async (req, res) => {
+  try {
+    console.log("Starting collection sync...");
 
-/* ================= CUSTOM COLLECTIONS ================= */
+    /*
+    STEP 1:
+    Fetch Smart Collections
+    */
+    const smartCollections = await fetchAllPages("smart_collections");
 
-let customUrl = `https://${SHOP}/admin/api/2024-10/custom_collections.json?limit=250`;
+    /*
+    STEP 2:
+    Extra delay before next endpoint
+    */
+    await sleep(1000);
 
-while(customUrl){
+    /*
+    STEP 3:
+    Fetch Custom Collections
+    */
+    const customCollections = await fetchAllPages("custom_collections");
 
-const response = await axios.get(customUrl,{ headers });
-await sleep(1000);
-const cols = response.data.custom_collections || [];
-allCollections.push(...cols);
+    /*
+    STEP 4:
+    Merge both collections
+    */
+    const allCollections = [
+      ...smartCollections,
+      ...customCollections,
+    ];
 
-const link = response.headers.link;
+    console.log(`Total collections fetched: ${allCollections.length}`);
 
-if(link && link.includes('rel="next"')){
-customUrl = link.split(";")[0]
-.replace("<","")
-.replace(">","");
-}else{
-customUrl = null;
-}
+    /*
+    STEP 5:
+    Format dropdown JSON
+    */
+    const formattedData = allCollections.map((collection) => ({
+      id: collection.id,
+      title: collection.title,
+      handle: collection.handle,
+    }));
 
-}
+    /*
+    STEP 6:
+    Save printers.json
+    */
+    fs.writeFileSync(
+      "printers.json",
+      JSON.stringify(formattedData, null, 2)
+    );
 
-/* ================= SAVE DATA ================= */
+    console.log("printers.json updated successfully");
 
-console.log("TOTAL COLLECTIONS:", allCollections.length);
+    res.json({
+      success: true,
+      message: "Collections synced successfully",
+      total: formattedData.length,
+      data: formattedData,
+    });
 
-allCollections.forEach(c=>{
+  } catch (error) {
+    console.error(
+      "Sync Error:",
+      error.response?.data || error.message
+    );
 
-if(!c.title) return;
-
-console.log("COLLECTION TITLE:", c.title);
-
-const { brand, series, model } = parseTitle(c.title);
-
-existing.push({
-brand,
-series,
-model,
-handle: c.handle || "",
-tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    });
+  }
 });
 
+/*
+========================================
+GET PRINTERS JSON ROUTE
+========================================
+*/
+app.get("/printers", (req, res) => {
+  try {
+    const data = fs.readFileSync("printers.json", "utf8");
+    res.json(JSON.parse(data));
+  } catch (error) {
+    res.status(500).json({
+      error: "printers.json not found",
+    });
+  }
 });
 
-console.log("TOTAL COLLECTIONS FROM SHOPIFY:", allCollections.length);
-console.log("TOTAL TO SAVE:", existing.length);
-console.log(existing.slice(0,10));
-
-saveDB(existing);
-
-console.log("FINAL SAVED:", existing.length);
-
-res.send("Synced all collections");
-
-}catch(e){
-
-console.log("SYNC ERROR:", e.response?.data || e.message);
-res.send(e.response?.data || e.message);
-
-}
-
+/*
+========================================
+ROOT
+========================================
+*/
+app.get("/", (req, res) => {
+  res.send("Printer Finder API Running");
 });
 
-// ================= WEBHOOK =================
-
-app.post("/webhook/collection-create", async (req,res)=>{
-
-try{
-
-const c = req.body;
-
-if(!c.title) return res.sendStatus(200);
-
-const {brand,series,model} = parseTitle(c.title);
-
-let existing = readDB();
-
-existing.push({
-brand,
-series,
-model,
-handle: c.handle,
-tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
-});
-
-saveDB(existing);
-
-console.log("Webhook synced:", c.title);
-
-res.sendStatus(200);
-
-}catch(e){
-console.log("webhook error");
-res.sendStatus(200);
-}
-
-});
-
-// ================= SERVER =================
-
-app.listen(PORT,()=>{
-console.log("Server running on port 3000");
+/*
+========================================
+START SERVER
+========================================
+*/
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
