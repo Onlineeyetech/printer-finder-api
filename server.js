@@ -31,26 +31,63 @@ return str.toLowerCase().replace(/\s+/g,'-');
 }
 
 // ================= PARSER =================
-
 function parseTitle(title){
 
-let brand="", series="", model="";
+title = title.trim();
 
+let brand = "";
+let series = "";
+let model = "";
+
+/* Case 1: Brand > Series > Model */
 if(title.includes(">")){
 const parts = title.split(">");
+
 brand = parts[0]?.trim() || "";
 series = parts[1]?.trim() || "";
 model = parts[2]?.trim() || "";
-}else{
-const words = title.split(" ");
+}
+
+/* Case 2: Normal title parsing */
+else{
+
+const words = title.split(/\s+/);
+
 brand = words[0] || "";
-model = words[words.length-1] || "";
-series = words.slice(1, -1).join(" ") || "General";
+
+/* Last word as probable model */
+model = words[words.length - 1] || "";
+
+/* Middle words = series */
+series = words.slice(1, -1).join(" ").trim();
+
+/* fallback */
+if(!series){
+series = "General";
 }
 
-return {brand,series,model};
+/* cleanup */
+series = series
+.replace(/cartridges/gi,"")
+.replace(/series/gi,"")
+.replace(/printers/gi,"")
+.replace(/toner/gi,"")
+.replace(/ink/gi,"")
+.trim();
+
+if(!series){
+series = "General";
 }
 
+}
+
+return {
+brand,
+series,
+model
+};
+
+}
 // ================= FINDER =================
 
 app.get("/finder",(req,res)=>{
