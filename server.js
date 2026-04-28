@@ -127,6 +127,7 @@ res.json({brands,series,models});
 });
 
 // ================= SYNC =================
+
 app.get("/sync-collections", async (req,res)=>{
 
 try{
@@ -192,6 +193,8 @@ allCollections.forEach(c=>{
 
 if(!c.title) return;
 
+console.log("COLLECTION TITLE:", c.title);
+
 const { brand, series, model } = parseTitle(c.title);
 
 existing.push({
@@ -203,6 +206,10 @@ tag: `${slug(brand)}_${slug(series)}_${slug(model)}`
 });
 
 });
+
+console.log("TOTAL COLLECTIONS FROM SHOPIFY:", allCollections.length);
+console.log("TOTAL TO SAVE:", existing.length);
+console.log(existing.slice(0,10));
 
 saveDB(existing);
 
