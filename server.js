@@ -215,7 +215,7 @@ app.get("/sync-collections", async (req, res) => {
         smartUrl = null;
       }
 
-      await sleep(1000);
+      await sleep(2500);
     }
 
     /* CUSTOM COLLECTIONS */
@@ -241,7 +241,7 @@ app.get("/sync-collections", async (req, res) => {
         customUrl = null;
       }
 
-      await sleep(1000);
+      await sleep(2500);
     }
 
     console.log("TOTAL COLLECTIONS:", allCollections.length);
