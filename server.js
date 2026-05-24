@@ -14,6 +14,9 @@ const PORT = process.env.PORT || 3000;
 const SHOP = process.env.SHOP;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
+console.log("SHOP:", SHOP);
+console.log("TOKEN:", ACCESS_TOKEN ? "FOUND" : "MISSING");
+
 const DB = "./printers.json";
 
 /* =========================
@@ -196,7 +199,7 @@ app.get("/sync-collections", async (req, res) => {
 
     let smartUrl = `https://${SHOP}/admin/api/2024-10/smart_collections.json?limit=250`;
 
-    while (smartUrl) {
+while (smartUrl) {
       const response = await axios.get(smartUrl, {
         headers
       });
@@ -206,14 +209,19 @@ app.get("/sync-collections", async (req, res) => {
 
       const link = response.headers.link;
 
-      if (link && link.includes('rel="next"')) {
-        smartUrl = link
-          .split(";")[0]
-          .replace("<", "")
-          .replace(">", "");
-      } else {
-        smartUrl = null;
-      }
+      const nextLink = link
+  ?.split(",")
+  ?.find(s => s.includes('rel="next"'));
+
+if(nextLink){
+  smartUrl = nextLink
+    .split(";")[0]
+    .replace("<","")
+    .replace(">","")
+    .trim();
+}else{
+  smartUrl = null;
+}
 
       await sleep(2500);
     }
@@ -222,7 +230,7 @@ app.get("/sync-collections", async (req, res) => {
 
     let customUrl = `https://${SHOP}/admin/api/2024-10/custom_collections.json?limit=250`;
 
-    while (customUrl) {
+while (customUrl) {
       const response = await axios.get(customUrl, {
         headers
       });
@@ -232,14 +240,19 @@ app.get("/sync-collections", async (req, res) => {
 
       const link = response.headers.link;
 
-      if (link && link.includes('rel="next"')) {
-        customUrl = link
-          .split(";")[0]
-          .replace("<", "")
-          .replace(">", "");
-      } else {
-        customUrl = null;
-      }
+   const nextLink = link
+  ?.split(",")
+  ?.find(s => s.includes('rel="next"'));
+
+if(nextLink){
+  customUrl = nextLink
+    .split(";")[0]
+    .replace("<","")
+    .replace(">","")
+    .trim();
+}else{
+  customUrl = null;
+}
 
       await sleep(2500);
     }
