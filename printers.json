@@ -34,14 +34,7 @@
     "handle": "hp-laserjet-series-laserjet-p1102w-1",
     "tag": "hp_laserjet-series_laserjet-p1102w"
   },
-  {
-    "brand": "MICR",
-    "series": "General",
-    "model": "Toners",
-    "handle": "micr-toners-1",
-    "tag": "micr_general_toners"
-  },
-  {
+   {
     "brand": "Thermal",
     "series": "General",
     "model": "Rolls",
