@@ -13,13 +13,7 @@
     "handle": "brother-dcp-series-a-test-opal",
     "tag": "brother_dcp-series_test-opal"
   },
-  {
-    "brand": "Bundle",
-    "series": "Builder",
-    "model": "Products",
-    "handle": "bundle-builder-products",
-    "tag": "bundle_builder_products"
-  },
+
   {
     "brand": "HP",
     "series": "Laser Series",
@@ -34,26 +28,13 @@
     "handle": "hp-laserjet-series-laserjet-p1102w-1",
     "tag": "hp_laserjet-series_laserjet-p1102w"
   },
-   {
-    "brand": "Thermal",
-    "series": "General",
-    "model": "Rolls",
-    "handle": "thermal-rolls",
-    "tag": "thermal_general_rolls"
-  },
+  
   {
     "brand": "All",
     "series": "General",
     "model": "Products",
     "handle": "all-products",
     "tag": "all_general_products"
-  },
-  {
-    "brand": "Battery",
-    "series": "Booster",
-    "model": "Pack",
-    "handle": "battery-booster-pack",
-    "tag": "battery_booster_pack"
   },
   {
     "brand": "Brother",
@@ -11241,14 +11222,7 @@
     "handle": "espon-workforce-series-workforce-wf-7720dtwf",
     "tag": "espon_workforce-series_workforce-wf-7720dtwf"
   },
-  {
-    "brand": "Home",
-    "series": "General",
-    "model": "page",
-    "handle": "frontpage",
-    "tag": "home_general_page"
-  },
-  {
+   {
     "brand": "HP",
     "series": "AMP Series",
     "model": "AMP 100",
@@ -26452,14 +26426,7 @@
     "handle": "hp-smart-tank-series-smart-tank-plus-655",
     "tag": "hp_smart-tank-series_smart-tank-plus-655"
   },
-  {
-    "brand": "INK",
-    "series": "&",
-    "model": "FINDER",
-    "handle": "ink-toner-finder",
-    "tag": "ink__finder"
-  },
-  {
+   {
     "brand": "Kodak",
     "series": "EasyShare Series",
     "model": "Easyshare 5100 All-in-one",
@@ -29685,20 +29652,6 @@
     "model": "Pantum P2516",
     "handle": "pantum-p-series-pantum-p2516",
     "tag": "pantum_p-series_pantum-p2516"
-  },
-  {
-    "brand": "Printing",
-    "series": "General",
-    "model": "Services",
-    "handle": "printing-services",
-    "tag": "printing_general_services"
-  },
-  {
-    "brand": "RJ",
-    "series": "RjSeries",
-    "model": "RJClass MF455dw",
-    "handle": "rj-rj-series-rjclass-mf455dw",
-    "tag": "rj_rjseries_rjclass-mf455dw"
   },
   {
     "brand": "Samsung",
